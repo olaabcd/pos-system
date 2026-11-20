@@ -23,6 +23,17 @@ app.get('/api/products', (req, res) => {
   });
 });
 
-app.listen(5000, () => {
-  console.log('Server running on http://localhost:5000');
+db.query(`CREATE TABLE IF NOT EXISTS products (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255),
+  price DECIMAL(10,2),
+  stock INT DEFAULT 0
+)`, (err) => {
+  if (err) console.log(err);
+  else console.log('Products table ready');
+});
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log('Server running on port ' + PORT);
 });
