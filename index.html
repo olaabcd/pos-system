@@ -1,52 +1,68 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VS Cake Factory - POS</title>
+<title>POS WORLD</title>
 <style>
 body{font-family:Arial;background:#e8e8f0;padding:10px;margin:0}
-.wrap{max-width:1000px;margin:auto;display:flex;gap:15px;flex-wrap:wrap}
-.card{background:#fff;padding:15px;border-radius:12px;flex:1;min-width:300px}
-h1,h2,h3{text-align:center;margin:5px}input,button{padding:10px;margin:5px;font-size:15px;border-radius:6px;border:1px solid #ccc}
-button{background:#16a34a;color:#fff;border:0;cursor:pointer}
+.card{background:#fff;padding:20px;border-radius:12px;max-width:800px;margin:auto}
+h1,h2,p{text-align:center;margin:5px}
+input{padding:10px;margin:5px;font-size:15px;border-radius:6px;border:1px solid #ccc}
+button{padding:10px 15px;margin:5px;font-size:15px;border-radius:6px;border:0;cursor:pointer;color:#fff;background:#16a34a}
 button.blue{background:#2563eb}button.red{background:#dc2626}button.grey{background:#e5e7eb;color:#333}
-table{width:100%;border-collapse:collapse}th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
-.prod{border:1px solid #ddd;border-radius:8px;padding:10px;margin:5px;display:flex;justify-content:space-between;align-items:center}
-.total{font-size:20px;font-weight:bold;display:flex;justify-content:space-between;margin-top:10px}
-@media print{body{background:#fff}.no-print{display:none!important}.wrap{display:block}.card{box-shadow:none}}
+table{width:100%;border-collapse:collapse;margin-top:15px}
+th,td{padding:10px;border-bottom:1px solid #ddd;text-align:center}
+th{background:#f8f8f8}
+.total{font-size:22px;font-weight:bold;display:flex;justify-content:space-between;margin-top:15px}
+@media print{body{background:#fff}.no-print{display:none!important}.card{box-shadow:none;max-width:100%}}
 </style></head><body>
-<h1 class="no-print">🛒 VS Cake Factory - POS</h1>
-<p style="text-align:center" class="no-print">mahakali nagar</p>
-<div class="wrap">
-<div class="card no-print">
-<h3>Add Product</h3>
-<input id="name" placeholder="Product Name e.g. Thums Up"><br>
-<input id="price" type="number" placeholder="Price ₹"><br>
-<input id="stock" type="number" placeholder="Stock"><br>
-<button onclick="add()">Add Product</button>
-<h3>Products - Click to Add to Bill</h3>
-<div id="plist"></div>
+<div class="card" id="billArea">
+<h1>🛒 POS WORLD</h1>
+<p>mahakali nagar</p>
+<hr>
+
+<!-- ADD PRODUCT - No Print -->
+<div class="no-print" style="text-align:center">
+<input id="name" placeholder="Product Name e.g. Rice">
+<input id="price" type="number" placeholder="Price ₹">
+<input id="stock" type="number" placeholder="Stock">
+<br><button onclick="add()">+ Add Product</button>
 </div>
 
-<div class="card" id="billArea">
-<h2>VS Cake Factory</h2><p style="text-align:center">mahakali nagar</p><hr>
 <p><b id="billNo">Bill #BILL-0001</b> - <span id="billDate"></span></p>
-<table><thead><tr><th>ITEM</th><th>QTY</th><th>PRICE</th><th>TOTAL</th><th class="no-print"></th></tr></thead><tbody id="cart"></tbody></table>
-<p id="empty" style="text-align:center;color:#888">No items yet. Click a product to add.</p>
-<div class="total"><span>Grand Total</span><span id="grand">₹0.00</span></div><br>
+
+<!-- MERGED SINGLE TABLE -->
+<table>
+<thead><tr><th>PRODUCT</th><th>PRICE</th><th>STOCK</th><th>QTY</th><th>TOTAL</th><th class="no-print">ACTION</th></tr></thead>
+<tbody id="plist"></tbody>
+</table>
+<p id="empty" style="color:#888">No products yet. Add one above!</p>
+
+<div class="total"><span>Grand Total</span><span id="grand">₹0.00</span></div>
+<br>
 <div class="no-print" style="display:flex;gap:10px"><button class="blue" style="flex:1" onclick="window.print()">🖨️ Print Bill</button><button class="grey" style="flex:1" onclick="newTxn()">New Transaction</button></div>
-<div class="no-print" style="margin-top:10px;text-align:center"><button class="red" onclick="clearCart()">Clear Bill</button></div>
+<div class="no-print" style="text-align:center"><button class="red" onclick="clearBill()">Clear Bill</button></div>
+<p style="font-size:12px;color:#888">Thank You - Visit Again!</p>
 </div>
-</div>
+
 <script>
-let products=[], cart=[];
+let products=[], cart={};
 let billNum = parseInt(localStorage.getItem('billNum')||'21');
 function fmt(n){return '₹'+Number(n).toFixed(2)}
-async function load(){let r=await fetch('/api/products');products=await r.json();document.getElementById('plist').innerHTML=products.map(p=>`<div class="prod"><span><b>${p.name}</b><br>₹${p.price} | Stock: ${p.stock}</span><div><button onclick="addToBill(${p.id})">+ Add</button><button class="red" onclick="del(${p.id})">X</button></div></div>`).join('')||'No products yet. Add one above!';}
+async function load(){let r=await fetch('/api/products');products=await r.json();render();}
 async function add(){let name=document.getElementById('name').value,price=document.getElementById('price').value,stock=document.getElementById('stock').value;if(!name||!price)return alert('Enter name and price');await fetch('/api/products',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,price,stock})});document.getElementById('name').value='';document.getElementById('price').value='';document.getElementById('stock').value='';load();}
-async function del(id){if(confirm('Delete?')){await fetch('/api/products/'+id,{method:'DELETE'});load()}}
-function addToBill(id){let p=products.find(x=>x.id==id);let c=cart.find(x=>x.id==id);if(c)c.qty++;else cart.push({id:p.id,name:p.name,price:Number(p.price),qty:1});render();}
-function changeQty(id,d){let c=cart.find(x=>x.id==id);c.qty+=d;if(c.qty<=0)cart=cart.filter(x=>x.id!=id);render();}
-function render(){let total=0;document.getElementById('cart').innerHTML=cart.map(i=>{let t=i.price*i.qty;total+=t;return `<tr><td>${i.name}</td><td class="no-print"><button onclick="changeQty(${i.id},-1)">-</button> ${i.qty} <button onclick="changeQty(${i.id},1)">+</button></td><td class="print-qty" style="display:none">${i.qty}</td><td>${fmt(i.price)}</td><td>${fmt(t)}</td><td class="no-print"><button class="red" onclick="changeQty(${i.id},-99)">X</button></td></tr>`}).join('');document.getElementById('grand').innerText=fmt(total);document.getElementById('empty').style.display=cart.length?'none':'block';document.getElementById('billNo').innerText='Bill #BILL-'+String(billNum).padStart(4,'0');document.getElementById('billDate').innerText=new Date().toLocaleString();}
-function clearCart(){cart=[];render();}
-function newTxn(){if(cart.length==0)return alert('Bill is empty');billNum++;localStorage.setItem('billNum',billNum);cart=[];render();alert('New Transaction Started! Bill No: '+billNum);}
-load();render();
+async function del(id){if(confirm('Delete?')){await fetch('/api/products/'+id,{method:'DELETE'});delete cart[id];load()}}
+function changeQty(id,d){cart[id]=(cart[id]||0)+d;if(cart[id]<=0)delete cart[id];render();}
+function clearBill(){cart={};render();}
+function newTxn(){if(Object.keys(cart).length==0)return alert('Bill is empty');billNum++;localStorage.setItem('billNum',billNum);cart={};render();}
+function render(){
+let total=0;
+document.getElementById('plist').innerHTML=products.map(p=>{
+let qty=cart[p.id]||0; let t=qty*Number(p.price); total+=t;
+return `<tr><td><b>${p.name}</b></td><td>${fmt(p.price)}</td><td>${p.stock}</td><td><span class="no-print"><button onclick="changeQty(${p.id},-1)">-</button> ${qty} <button onclick="changeQty(${p.id},1)">+</button></span><span class="print-only" style="display:none">${qty}</span></td><td>${fmt(t)}</td><td class="no-print"><button onclick="changeQty(${p.id},1)">+ Add</button> <button class="red" onclick="del(${p.id})">X</button></td></tr>`
+}).join('');
+document.getElementById('empty').style.display=products.length?'none':'block';
+document.getElementById('grand').innerText=fmt(total);
+document.getElementById('billNo').innerText='Bill #BILL-'+String(billNum).padStart(4,'0');
+document.getElementById('billDate').innerText=new Date().toLocaleString();
+}
+load();
 </script></body></html>
