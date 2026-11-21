@@ -1,25 +1,37 @@
 const express = require('express');
-const cors = require('cors');
-const db = require('./db');
-
+const path = require('path');
 const app = express();
-app.use(cors());
+const db = require('./db');
 app.use(express.json());
+app.use(express.static(__dirname));
 
-// Test - check if server is running
+// Show POS screen on main link
 app.get('/', (req, res) => {
-  res.send('POS Server is Running!');
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Get all products from MySQL
+// Get all products
 app.get('/api/products', (req, res) => {
-  db.query('SELECT * FROM products', (err, results) => {
-    if (err) {
-      console.log(err);
-      res.status(500).json({ error: 'Database Error' });
-      return;
-    }
+  db.query('SELECT * FROM products ORDER BY id DESC', (err, results) => {
+    if (err) { console.log(err); return res.status(500).json({ error: 'Database Error' }); }
     res.json(results);
+  });
+});
+
+// Add new product
+app.post('/api/products', (req, res) => {
+  const { name, price, stock } = req.body;
+  db.query('INSERT INTO products (name, price, stock) VALUES (?,?,?)', [name, price, stock || 0], (err, result) => {
+    if (err) { console.log(err); return res.status(500).json({ error: 'Database Error' }); }
+    res.json({ id: result.insertId, name, price, stock });
+  });
+});
+
+// Delete product
+app.delete('/api/products/:id', (req, res) => {
+  db.query('DELETE FROM products WHERE id=?', [req.params.id], (err) => {
+    if (err) return res.status(500).json({ error: 'Database Error' });
+    res.json({ success: true });
   });
 });
 
